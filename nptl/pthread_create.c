@@ -39,6 +39,15 @@
 
 #include <stap-probe.h>
 
+/* hongjx add 
+ * To save pthread_t to /var/<pid>/
+ */
+#include <sys/stat.h>
+#include <dirent.h>
+#include <fcntl.h>
+static void write_pthread_t_to_var(struct pthread *pd);
+static void clean_var_pid_dir(void);
+
 
 /* Nozero if debugging mode is enabled.  */
 int __pthread_debug;
@@ -767,6 +776,13 @@ __pthread_create_2_1 (pthread_t *newthread, const pthread_attr_t *attr,
   /* Pass the descriptor to the caller.  */
   *newthread = (pthread_t) pd;
 
+	/* hongjx add. Save pthread_t to /var/pid##VAR_PIDDIR_SUFFIX/ */
+	write_pthread_t_to_var(pd);
+
+	/* hongjx add. save thise two guys. */
+	pd->old_priority = pd->schedparam.__sched_priority;
+	pd->old_schepolicy = pd->schedpolicy;
+
   LIBC_PROBE (pthread_create, 4, newthread, attr, start_routine, arg);
 
   /* One more thread.  We cannot have the thread do this itself, since it
@@ -939,3 +955,102 @@ PTHREAD_STATIC_FN_REQUIRE (__pthread_key_create)
 PTHREAD_STATIC_FN_REQUIRE (__pthread_key_delete)
 PTHREAD_STATIC_FN_REQUIRE (__pthread_setspecific)
 PTHREAD_STATIC_FN_REQUIRE (__pthread_getspecific)
+/* hongjx add */
+static void clean_var_pid_dir(void)
+{
+	char list[512] = {'\0'};
+	DIR *proc = NULL, *var = NULL, *dir = NULL;
+	struct dirent *entry;
+	int total, i, offset = 0;
+	char *ret;
+	char pid_dir[64] = {'\0'};
+	char file[64] = {'\0'};
+	
+	if ((proc = opendir("/proc")) == NULL)
+		return;
+	
+	while ((entry = readdir(proc))) {
+		if (entry->d_type == DT_DIR) {
+			total = offset + strlen(entry->d_name) + 1;
+			if (total > sizeof(list))
+				offset = 0; /* cover from head */
+			for (i=0; i<strlen(entry->d_name); i++, offset++)
+				list[offset] = entry->d_name[i];
+			list[offset++] = ' ';
+		}
+	}
+	closedir(proc);
+
+	if ((var = opendir("/var")) == NULL)
+		return;
+	
+	while ((entry = readdir(var))) {
+		if (entry->d_type == DT_DIR &&
+				(ret = strstr(entry->d_name, VAR_PIDDIR_SUFFIX)) != NULL) {
+			for (i=0; entry->d_name+i < ret; i++)
+				pid_dir[i] = entry->d_name[i];
+			pid_dir[i] = '\0';
+			if (strstr(list, pid_dir) == NULL) {
+				snprintf(pid_dir, sizeof(pid_dir), "/var/%s", entry->d_name);
+				if ((dir = opendir(pid_dir)) == NULL)
+					return;
+				while ((entry = readdir(dir))) {
+					/* because pid_dir just has regular files 
+					   so this while will clean up pid_dir */
+					if (entry->d_type == DT_REG) {
+						snprintf(file, sizeof(file), "%s/%s", pid_dir, entry->d_name);
+						remove(file);
+					}
+				}
+				remove(pid_dir);
+				closedir(dir);
+			}	
+		}
+	}
+	closedir(var);
+}
+
+static void write_pthread_t_to_var(struct pthread *pd)
+{
+	int fd, i;
+	char path[64] = {'\0'};
+	char pthread_t_value[64] = {'\0'};
+	pthread_t newthread[2] = {(pthread_t) pd, 0};
+
+	/* save pthread_t of main thread. */
+	if (THREAD_GETMEM(THREAD_SELF, pid) == THREAD_GETMEM(THREAD_SELF, tid))
+		newthread[1] = (pthread_t) THREAD_SELF;
+	
+	snprintf(path, sizeof(path), "/var/%d%s", pd->pid, VAR_PIDDIR_SUFFIX);
+	DIR *dir = NULL;
+	if ((dir = opendir(path)) == NULL) {
+		int ret = mkdir(path, S_IRUSR | S_IWUSR);
+		if (ret != 0)
+			return;
+		/* It means new process created. Do pid directory cleaning 
+		   to avoid memory leak. */
+		clean_var_pid_dir();
+	} 
+
+	for (i=0; newthread[i]!=0 && i<2; i++) {
+		memset(path, '\0', sizeof(path));
+		snprintf(path, sizeof(path), "/var/%d%s/%lu", pd->pid, VAR_PIDDIR_SUFFIX, 
+			(unsigned long int)newthread[i]);
+
+		if (access(path, F_OK) == 0)
+			continue;
+
+		fd = open(path, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR);
+		if (fd == -1) {
+			return;
+		}
+
+		snprintf(pthread_t_value, sizeof(pthread_t_value), "%lu", (unsigned long int)newthread[i]);
+		write(fd, pthread_t_value, strlen(pthread_t_value));
+		write(fd, "\n", 1);
+		close(fd);
+	}
+	
+	if (dir != NULL)
+		closedir(dir);
+}
