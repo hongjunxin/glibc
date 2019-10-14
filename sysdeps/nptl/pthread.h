@@ -1159,4 +1159,184 @@ __NTH (pthread_equal (pthread_t __thread1, pthread_t __thread2))
 
 __END_DECLS
 
+
+/* --> hongjx add begin */
+#define VAR_PIDDIR_SUFFIX 	"_tid_cache"
+
+#ifndef TRUE
+#define TRUE 	1
+#endif
+
+#ifndef FALSE
+#define FALSE	0
+#endif
+
+typedef int boolean;
+
+#define PTHREAD_ATTR_NAME_SIZE		32
+#define THREAD_PRIVATE_VAR_SIZE		32
+
+struct pri_var {
+	int *key;
+	int value;
+	struct pri_var *next;
+};
+
+/*
+ * Description
+ * 		Get thread (task) id according to thread name.
+ * Parameter
+ * 		name: thread (task) name
+ * 		pthread: buffer to save thread id 
+ * Return
+ *		0 		on success
+ *		EINVAL	if pthread is error
+ *		ESRCH	if thread (task) not found according to name
+ *		ETYPENOTMATCH	task type not match			
+ */	
+extern int pthread_getid(char *name, pthread_t *pthread);
+
+/*
+ * Description
+ *		If the caller thread is in R status other any threads in
+ *		the same process can't get running. This API support recursive 
+ *		call.
+ * Parameter
+ *		void
+ * Return
+ *		0	on success
+ *		-1  on error
+ */
+extern int pthread_lock(void);
+
+/*
+ * Description
+ * 		Match pthread_lock(). This API support recursive call. 
+ * Parameter
+ * 		void
+ * Return
+ *		0	on success
+ *		-1  on error
+ */
+extern int pthread_unlock(void);
+
+/*
+ * Description
+ *		To know whether pthread is in ready or not.
+ * Return
+ *		TRUE	in ready
+ *		FALSE	not in ready or pthread not exist.
+ *				set errno to ESRCH if pthread not exist
+ */
+extern boolean pthread_is_ready(pthread_t pthread);
+
+/*
+ * Description
+ *		To know whether pthread is in suspend
+ * Return
+ *		TRUE	in suspend
+ *		FALSE	not in suspend or pthread not exist.
+ *				set errno to ESRCH if pthread not exist
+ */
+extern boolean pthread_is_suspend(pthread_t pthread);
+
+/*
+ * Description
+ *		Get name of pthread_attr_t
+ * Parameter
+ *		attr	thread attribute
+ *		name 	buffer to save name of pthread_attr_t
+ * Return
+ *		0		on success
+ *		EINVAL  on error
+ */
+extern int pthread_attr_getname(const pthread_attr_t *attr, char **name);
+
+/*
+ * Description
+ *		Set name of pthread_attr_t	
+ * Parameter
+ *		attr	thread attribute
+ *		name	specified name of pthread_attr_t, if NULL used p<pid> as name.
+ * Return
+ *		0		on success
+ *		EINVAL	on error
+ * 
+ */
+extern int pthread_attr_setname(pthread_attr_t *attr, char *name);
+
+extern int pthread_getschedprio(pthread_t thread, int *priority);
+
+/*
+ * Description:
+ *		Check whether the specified thread exists or not
+ * Return:
+ * 		0		existing
+ *		-1		not found
+ */
+extern int pthread_verifyid(pthread_t thread);
+
+/*
+ * Description:
+ *		Force to cancel specfied thread. Ignore the cancel type and cancel state.
+ * Return:
+ *		0		on success
+ *		ESRCH	specfied thread not found
+ */
+extern int pthread_cancelforce(pthread_t thread);
+
+/*
+ * Description:
+ *		Show thread stack info, including thread name, execution routine, tid, 
+ *		stack base, stack total size, stack used size, stack free size.
+ * Parameter:
+ * 		if thread is 0, show all threads stack info within invoker process.
+ */
+extern void pthread_showstack(pthread_t thread);
+
+/*
+ * Description:
+ *		Add private variable for the specified thread, value copied from *pvar.
+ * Return:
+ *		0		on success
+ *		-1		number of private variable exceeds limit
+ *		EINVAL	pvar error
+ *		ESRCH	specfied thread not found
+ */
+extern int pthread_addvar(pthread_t thread, int *pvar);
+
+/*
+ * Description:
+ *		Delete private variable from the specified thread. The deleted variable
+ *		match to pvar. It likes pvar is the key of thread private variable.
+ * Return:
+ *		0		on success
+ *		EINVAL	pvar error
+ *		ESRCH	specfied thread not found 
+ */
+extern int pthread_delvar(pthread_t thread, int *pvar);
+
+/*
+ * Description:
+ *		Set private variable value for the specfied thread. pvar is the key
+ *		of thread private variable.
+ * Return:
+ *		0		on success
+ *		EINVAL	pvar error
+ *		ESRCH	specfied thread not found  
+ */
+extern int pthread_setvar(pthread_t thread, int *pvar, int value);
+
+/*
+ * Description:
+ *		Get private variable value from the specified thread. pvar is the
+ *		key of thread private variable.
+ * Return:
+ *		0		on success
+ *		EINVAL	pvar error
+ *		ESRCH	specfied thread not found   
+ */
+ extern int pthread_getvar(pthread_t thread, int *pvar, int *value);
+/* <-- hongjx add end */ 
+
 #endif	/* pthread.h */
