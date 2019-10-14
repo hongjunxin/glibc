@@ -36,7 +36,10 @@ __pthread_setschedparam (pthread_t threadid, int policy,
 
   int result = 0;
 
-  /* See CREATE THREAD NOTES in nptl/pthread_create.c.  */
+  /* hongjx add. save thise two guys. */
+  pd->old_schepolicy = pd->schedpolicy;
+  pd->old_priority = pd->schedparam.__sched_priority;  
+
   lll_lock (pd->lock, LLL_PRIVATE);
 
   struct sched_param p;

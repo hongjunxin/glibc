@@ -36,6 +36,7 @@ __pthread_attr_destroy (pthread_attr_t *attr)
 #endif
     /* The affinity CPU set might be allocated dynamically.  */
     free (iattr->cpuset);
+	free(iattr->name); /* hongjx add */
 
   return 0;
 }

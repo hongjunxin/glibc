@@ -39,6 +39,9 @@ struct pthread_attr
   /* Affinity map.  */
   cpu_set_t *cpuset;
   size_t cpusetsize;
+  
+  /* hongjx add. pthread_attr name */
+  char *name; 
 };
 
 #define ATTR_FLAG_DETACHSTATE		0x0001

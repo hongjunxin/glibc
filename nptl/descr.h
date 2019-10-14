@@ -394,6 +394,12 @@ struct pthread
 
   /* Indicates whether is a C11 thread created by thrd_creat.  */
   bool c11;
+  /* hongjx add */	
+  int old_schepolicy;
+  int old_priority;
+  unsigned int pthread_lock_counter;
+  struct pri_var *pri_var;  /* thread private variable */
+  int pri_var_lock;
 
   /* This member must be last.  */
   char end_padding[];

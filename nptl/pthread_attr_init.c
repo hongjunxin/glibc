@@ -46,6 +46,9 @@ __pthread_attr_init_2_1 (pthread_attr_t *attr)
   /* Default guard size specified by the standard.  */
   iattr->guardsize = __getpagesize ();
 
+  /* hongjx add */
+  iattr->name = (char *) malloc(PTHREAD_ATTR_NAME_SIZE);
+
   return 0;
 }
 versioned_symbol (libpthread, __pthread_attr_init_2_1, pthread_attr_init,
